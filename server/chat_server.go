@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 )
@@ -79,7 +80,8 @@ func (s *ChatServer) process_nck(req Request) {
 
 	log.Printf("User '%s' was added to the chat.\n", nick)
 
-	res := Succ_server_res(nick, "OK")
+	msg := fmt.Sprintf("Nick %s registered", nick)
+	res := Succ_server_res(nick, msg)
 	req.From.Send_res(res)
 }
 
@@ -118,7 +120,7 @@ func (s *ChatServer) process_msg(req Request) {
 		return
 	}
 
-	log.Printf("Sending msg from %s to %s.\n", nick, msg)
+	log.Printf("Sending msg from %s to %s.\n", nick, dest_nick)
 	res := Response{
 		From: nick,
 		To:   dest_nick,

@@ -30,10 +30,11 @@ type ProxyWorker struct {
 func New_proxy_worker(conn net.Conn, chat_server *ChatServer) ProxyWorker {
 	return ProxyWorker{
 		conn:        conn,
-		reader_buf:  bufio.NewReader(conn),
-		writer_buf:  bufio.NewWriter(conn),
 		chat_server: chat_server,
 		user:        New_user(UserBufSize),
+		reader_buf:  bufio.NewReader(conn),
+		writer_buf:  bufio.NewWriter(conn),
+		groups:      map[string][]string{},
 	}
 }
 
@@ -71,7 +72,7 @@ func (p *ProxyWorker) process_server_res() {
 	for res := range p.user.res_chn {
 		var output string
 		if res.From != ServerName {
-			output += res.From
+			output += res.From + ": "
 		}
 		// New line is very important since most sockets read input
 		// from line to line
@@ -96,41 +97,48 @@ func (p *ProxyWorker) process_cmd(line string) {
 		return
 	}
 
+	log.Printf("Proxy processing %s\n", line)
+
 	cmd := strings.ToUpper(tok[0])
 	switch Cmd(cmd) {
 	case NCK:
 		nick := tok[1]
 		req := Request{p.user, NCK, []string{nick}} // Data is of slice type
+		log.Printf("Sending request: %v", req)
 		p.chat_server.Send_request(req)
 	case LST:
 		req := Request{p.user, LST, []string{}}
+		log.Printf("Sending request: %v", req)
 		p.chat_server.Send_request(req)
 	case MSG:
 		p.handle_msg(tok[1:])
 	case GRP:
-		p.handle_grp(tok[:1])
+		p.handle_grp(tok[1:])
 	default:
 		err_msg := fmt.Sprintf("Unknown command: %s\n", cmd)
 		p.writer_buf.WriteString(err_msg)
+		p.writer_buf.Flush()
 	}
 }
 
 func (p *ProxyWorker) handle_msg(args []string) {
 	if len(args) < 2 {
-		p.write_to_socket("Wrong usage of /MSG. Usage: /MSG <dest> <msg>")
+		p.write_to_socket("Wrong usage of /MSG. Usage: /MSG <dest> <msg>\n")
 		return
 	}
 
-	dest_str := args[1]
+	dest_str := args[0]
 	dest := remove_duplicates(p.expand_dest(dest_str))
 
-	msg := strings.Join(args[2:], " ")
+	msg := strings.Join(args[1:], " ")
 	for _, d := range dest {
 		req := Request{
 			From: p.user,
 			Cmd:  MSG,
 			Data: []string{d, msg},
 		}
+
+		log.Printf("Sending request: %v", req)
 		p.chat_server.Send_request(req)
 	}
 }
@@ -141,8 +149,8 @@ func (p *ProxyWorker) handle_grp(args []string) {
 		return
 	}
 
-	group_name := args[1]
-	users_str := args[2]
+	group_name := args[0]
+	users_str := args[1]
 
 	if !is_valid_group_name(group_name) {
 		p.write_to_socket("Invalid group name. Must start with hash (#), include only alphanumeric chars and underscores, and have a max length of 11 (counting the hash).\n")
@@ -196,7 +204,7 @@ func remove_duplicates(arr []string) []string {
 func is_valid_group_name(group_name string) bool {
 	if len(group_name) < 2 ||
 		len(group_name) > 11 ||
-		strings.HasPrefix(group_name, "#") {
+		!strings.HasPrefix(group_name, "#") {
 
 		return false
 	}
