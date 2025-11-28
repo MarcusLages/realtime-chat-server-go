@@ -18,8 +18,9 @@ const (
 const NickRegex string = "^[a-zA-Z][a-zA-Z0-9_]{0,9}$"
 
 type ChatServer struct {
-	req_chn chan Request    // Request channel (receives commands)
-	users   map[string]User // nicks -> User
+	req_chn    chan Request      // Request channel (receives commands)
+	users      map[string]User   // nicks -> User
+	user_nicks map[string]string // UUIDs -> nicks
 }
 
 func (s *ChatServer) Start() {
@@ -44,7 +45,8 @@ func (s *ChatServer) process_command(req Request) {
 	case LOGOUT:
 		s.process_logout(req)
 	default:
-		err_res := Err_invalid_cmd(req.From.Nick, req.Cmd)
+		nick := s.get_nick(req.From.ID)
+		err_res := Err_invalid_cmd(nick, req.Cmd)
 		req.From.Send_res(err_res)
 	}
 }
@@ -53,29 +55,27 @@ func (s *ChatServer) process_command(req Request) {
 func (s *ChatServer) process_nck(req Request) {
 	nick := req.Data[0]
 	if !is_nick_valid(nick) {
-		err_res := Err_invalid_nick(req.From.Nick)
+		nick := s.get_nick(req.From.ID)
+		err_res := Err_invalid_nick(nick)
 		req.From.Send_res(err_res)
 		return
 	}
 
 	ex_user, exists := s.users[nick]
-	if exists && ex_user.Nick != req.From.Nick {
-		err_res := Err_nick_already_exists(req.From.Nick)
+	if exists && ex_user.ID != req.From.ID {
+		nick := s.get_nick(req.From.ID)
+		err_res := Err_nick_already_exists(nick)
 		req.From.Send_res(err_res)
 		return
 	}
 
 	// Renaming user
-	if old_nick, exists := s.users[req.From.Nick]; exists {
-		delete(s.users, req.From.Nick)
-		old_nick.Nick = nick
-		req.From.Nick = nick // For clarity
-		s.users[nick] = old_nick
-	} else {
-		// New user
-		req.From.Nick = nick // For clarity
-		s.users[nick] = req.From
+	if old_nick, exists := s.user_nicks[req.From.ID]; exists {
+		delete(s.users, old_nick)
 	}
+
+	s.users[nick] = req.From
+	s.user_nicks[req.From.ID] = nick
 
 	log.Printf("User '%s' was added to the chat.\n", nick)
 
@@ -100,7 +100,8 @@ func (s *ChatServer) process_lst(req Request) {
 	}
 	list_str += "]"
 
-	res := Succ_server_res(req.From.Nick, list_str)
+	nick := s.get_nick(req.From.ID)
+	res := Succ_server_res(nick, list_str)
 	req.From.Send_res(res)
 }
 
@@ -108,14 +109,18 @@ func (s *ChatServer) process_lst(req Request) {
 func (s *ChatServer) process_msg(req Request) {
 	dest_nick := req.Data[0]
 	msg := req.Data[1]
-	if _, authorized := s.users[req.From.Nick]; !authorized {
-		err_res := Err_unauthorized(req.From.Nick)
+
+	// Check if sender has a nick
+	nick, has_nick := s.user_nicks[req.From.ID]
+	if !has_nick {
+		err_res := Err_unauthorized(req.From.ID)
 		req.From.Send_res(err_res)
+		return
 	}
 
-	log.Printf("Sending msg from %s to %s.\n", req.From.Nick, msg)
+	log.Printf("Sending msg from %s to %s.\n", nick, msg)
 	res := Response{
-		From: req.From.Nick,
+		From: nick,
 		To:   dest_nick,
 		Data: msg,
 	}
@@ -124,10 +129,11 @@ func (s *ChatServer) process_msg(req Request) {
 
 // */LOGOUT
 func (s *ChatServer) process_logout(req Request) {
-	nick := req.From.Nick
+	user_id := req.From.ID
 
-	if _, exists := s.users[nick]; exists {
+	if nick, exists := s.user_nicks[user_id]; exists {
 		delete(s.users, nick)
+		delete(s.user_nicks, user_id)
 		log.Printf("Logging out user: %s\n", nick)
 	}
 }
@@ -141,6 +147,15 @@ func (s *ChatServer) send_msg(src User, dest_nick string, res Response) {
 	} else {
 		dest.Send_res(res)
 	}
+}
+
+// Gets the User nick from the id or returns the id if not in the server
+func (s *ChatServer) get_nick(id string) string {
+	nick, ok := s.user_nicks[id]
+	if !ok {
+		return id
+	}
+	return nick
 }
 
 func is_nick_valid(nick string) bool {
