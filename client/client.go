@@ -24,8 +24,11 @@ func main() {
 
 	go read_from_keyboard(key_scan, conn, done)
 	go read_from_socket(sock_scan, done)
+
+	// Just need to wait for either routine to be finished to finish the program
 	<-done
-	<-done
+
+	fmt.Println("Connection closed")
 }
 
 func read_from_keyboard(key_scan *bufio.Scanner, conn net.Conn, done chan bool) {
