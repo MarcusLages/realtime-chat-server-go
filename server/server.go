@@ -1,5 +1,7 @@
 package chat_server
 
+import "regexp"
+
 // Cmd sum type with the possible commands
 type Cmd string
 
@@ -9,6 +11,8 @@ const (
 	LST    Cmd = "/LST"
 	LOGOUT Cmd = "/LOGOUT"
 )
+
+const NickRegex string = "^[a-zA-Z][a-zA-Z0-9_]{0,9}$"
 
 type ChatServer struct {
 	req_chn chan Request    // Request channel (receives commands)
@@ -29,43 +33,44 @@ func (s *ChatServer) Send_request(req Request) {
 func (s *ChatServer) process_command(req Request) {
 	switch req.Cmd {
 	case NCK:
-		res := s.process_nck(req)
-		s.send_to(res.To, res)
+		s.process_nck(req)
 	case LST:
-		res := s.process_lst(req)
-		s.send_to(res.To, res)
+		s.process_lst(req)
 	case MSG:
-		res := s.process_msg(req)
-		s.send_to(res.To, res)
+		s.process_msg(req)
 	case LOGOUT:
-		res := s.process_logout(req)
-		s.send_to(res.To, res)
+		s.process_logout(req)
 	default:
-		err_res := Err_invalid_cmd(req.From, req.Cmd)
-		s.send_to(err_res.To, err_res)
+		err_res := Err_invalid_cmd(req.From.Nick, req.Cmd)
+		req.From.Send_res(err_res)
 	}
 }
 
 // TODO: Do not forget to check for renaming
-func (s *ChatServer) process_nck(req Request) Response {
-	return Response{}
+func (s *ChatServer) process_nck(req Request) {
+	nick := req.Data
+	if !is_nick_valid(nick) {
+
+	}
+
+	res := Response{}
+	req.From.Send_res(res)
 }
 
-func (s *ChatServer) process_lst(req Request) Response {
-	return Response{}
+func (s *ChatServer) process_lst(req Request) {
+
 }
 
-func (s *ChatServer) process_msg(req Request) Response {
-	return Response{}
+func (s *ChatServer) process_msg(req Request) {
+
 }
 
-func (s *ChatServer) process_logout(req Request) Response {
-	return Response{}
+func (s *ChatServer) process_logout(req Request) {
+
 }
 
-func (s *ChatServer) send_to(dest_nick string, res Response) {
+func (s *ChatServer) send_msg(src User, dest_nick string, res Response) {
 	dest, exists := s.users[dest_nick]
-	src := s.users[res.From]
 
 	if !exists {
 		err_res := Err_nck_doesnt_exist(res.From, dest_nick)
@@ -73,4 +78,9 @@ func (s *ChatServer) send_to(dest_nick string, res Response) {
 	} else {
 		dest.Send_res(res)
 	}
+}
+
+func is_nick_valid(nick string) bool {
+	matched, _ := regexp.MatchString(NickRegex, nick)
+	return matched
 }

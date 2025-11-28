@@ -7,7 +7,7 @@ const ServerName string = "CHAT_SERVER"
 
 // From is a user nick
 type Request struct {
-	From string
+	From User
 	Cmd  Cmd    // Sum type representing possible commands
 	Data string // Extra req data
 }
@@ -32,6 +32,12 @@ func Err_nck_doesnt_exist(dest, non_exist_nick string) Response {
 func Err_invalid_cmd(dest string, inval_cmd Cmd) Response {
 	err_msg := fmt.Sprintf("`%s` is an invalid command.", string(inval_cmd))
 	return Err_res(dest, err_msg)
+}
+
+func Err_invalid_nick(dest string) Response {
+	err_msg := "Invalid nickname. Must start with a letter, include only alphanumeric chars and underscores, and have a max length of 10."
+	return Err_res(dest, err_msg)
+
 }
 
 func Err_unauthorized(dest string) Response {
