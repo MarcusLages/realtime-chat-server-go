@@ -26,7 +26,7 @@ type ChatServer struct {
 func (s *ChatServer) Start() {
 	for {
 		req := <-s.req_chn
-		s.process_command(req)
+		s.process_cmd(req)
 	}
 }
 
@@ -34,7 +34,7 @@ func (s *ChatServer) Send_request(req Request) {
 	s.req_chn <- req
 }
 
-func (s *ChatServer) process_command(req Request) {
+func (s *ChatServer) process_cmd(req Request) {
 	switch req.Cmd {
 	case NCK:
 		s.process_nck(req)
