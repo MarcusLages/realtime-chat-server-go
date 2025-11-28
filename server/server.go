@@ -55,23 +55,25 @@ func (s *ChatServer) process_nck(req Request) {
 	if !is_nick_valid(nick) {
 		err_res := Err_invalid_nick(req.From.Nick)
 		req.From.Send_res(err_res)
+		return
 	}
 
 	ex_user, exists := s.users[nick]
 	if exists && ex_user.Nick != req.From.Nick {
 		err_res := Err_nick_already_exists(req.From.Nick)
 		req.From.Send_res(err_res)
+		return
 	}
 
 	// Renaming user
 	if old_nick, exists := s.users[req.From.Nick]; exists {
 		delete(s.users, req.From.Nick)
 		old_nick.Nick = nick
-		req.From.Nick = nick // For safety
+		req.From.Nick = nick // For clarity
 		s.users[nick] = old_nick
 	} else {
 		// New user
-		req.From.Nick = nick
+		req.From.Nick = nick // For clarity
 		s.users[nick] = req.From
 	}
 
