@@ -1,6 +1,9 @@
 package chat_server
 
-import "regexp"
+import (
+	"log"
+	"regexp"
+)
 
 // Cmd sum type with the possible commands
 type Cmd string
@@ -46,27 +49,85 @@ func (s *ChatServer) process_command(req Request) {
 	}
 }
 
-// TODO: Do not forget to check for renaming
+// */NCK
 func (s *ChatServer) process_nck(req Request) {
-	nick := req.Data
+	nick := req.Data[0]
 	if !is_nick_valid(nick) {
-
+		err_res := Err_invalid_nick(req.From.Nick)
+		req.From.Send_res(err_res)
 	}
 
-	res := Response{}
+	ex_user, exists := s.users[nick]
+	if exists && ex_user.Nick != req.From.Nick {
+		err_res := Err_nick_already_exists(req.From.Nick)
+		req.From.Send_res(err_res)
+	}
+
+	// Renaming user
+	if old_nick, exists := s.users[req.From.Nick]; exists {
+		delete(s.users, req.From.Nick)
+		old_nick.Nick = nick
+		req.From.Nick = nick // For safety
+		s.users[nick] = old_nick
+	} else {
+		// New user
+		req.From.Nick = nick
+		s.users[nick] = req.From
+	}
+
+	log.Printf("User '%s' was added to the chat.\n", nick)
+
+	res := Succ_server_res(nick, "OK")
 	req.From.Send_res(res)
 }
 
+// */LST
 func (s *ChatServer) process_lst(req Request) {
+	var user_list []string
+	for nick := range s.users {
+		user_list = append(user_list, nick)
+	}
 
+	// List formatting
+	list_str := "["
+	for i, nick := range user_list {
+		if i > 0 && i < len(list_str) {
+			list_str += ", "
+		}
+		list_str += nick
+	}
+	list_str += "]"
+
+	res := Succ_server_res(req.From.Nick, list_str)
+	req.From.Send_res(res)
 }
 
+// */MSG
 func (s *ChatServer) process_msg(req Request) {
+	dest_nick := req.Data[0]
+	msg := req.Data[1]
+	if _, authorized := s.users[req.From.Nick]; !authorized {
+		err_res := Err_unauthorized(req.From.Nick)
+		req.From.Send_res(err_res)
+	}
 
+	log.Printf("Sending msg from %s to %s.\n", req.From.Nick, msg)
+	res := Response{
+		From: req.From.Nick,
+		To:   dest_nick,
+		Data: msg,
+	}
+	s.send_msg(req.From, dest_nick, res)
 }
 
+// */LOGOUT
 func (s *ChatServer) process_logout(req Request) {
+	nick := req.From.Nick
 
+	if _, exists := s.users[nick]; exists {
+		delete(s.users, nick)
+		log.Printf("Logging out user: %s\n", nick)
+	}
 }
 
 func (s *ChatServer) send_msg(src User, dest_nick string, res Response) {

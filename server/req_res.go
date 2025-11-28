@@ -8,8 +8,8 @@ const ServerName string = "CHAT_SERVER"
 // From is a user nick
 type Request struct {
 	From User
-	Cmd  Cmd    // Sum type representing possible commands
-	Data string // Extra req data
+	Cmd  Cmd      // Sum type representing possible commands
+	Data []string // Extra req data
 }
 
 // From/To are user nicks
@@ -20,6 +20,10 @@ type Response struct {
 }
 
 // Helper error response generators
+func Succ_server_res(dest, msg string) Response {
+	return Response{ServerName, dest, msg}
+}
+
 func Err_res(dest, err_msg string) Response {
 	return Response{ServerName, dest, err_msg}
 }
@@ -36,6 +40,12 @@ func Err_invalid_cmd(dest string, inval_cmd Cmd) Response {
 
 func Err_invalid_nick(dest string) Response {
 	err_msg := "Invalid nickname. Must start with a letter, include only alphanumeric chars and underscores, and have a max length of 10."
+	return Err_res(dest, err_msg)
+
+}
+
+func Err_nick_already_exists(dest string) Response {
+	err_msg := "Invalid nickname. Nickname already exists."
 	return Err_res(dest, err_msg)
 
 }
