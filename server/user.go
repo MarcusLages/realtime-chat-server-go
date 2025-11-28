@@ -1,4 +1,4 @@
-package chat_server
+package main
 
 import (
 	"crypto/rand"
