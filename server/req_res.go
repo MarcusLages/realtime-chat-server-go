@@ -5,7 +5,6 @@ import "fmt"
 // Name used when sending server responses (commonly error responses)
 const ServerName string = "CHAT_SERVER"
 
-// From is a user nick
 type Request struct {
 	From User
 	Cmd  Cmd      // Sum type representing possible commands
@@ -14,12 +13,13 @@ type Request struct {
 
 // From/To are user nicks
 type Response struct {
-	From string
-	To   string
+	From string // User nick, not UUID
+	To   string // User nick, not UUID
 	Data string
 }
 
 // Helper error response generators
+// Only used in ChatServer
 func Succ_server_res(dest, msg string) Response {
 	return Response{ServerName, dest, msg}
 }

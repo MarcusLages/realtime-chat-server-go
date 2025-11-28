@@ -21,7 +21,7 @@ const GRP Cmd = "/GRP"
 type ProxyWorker struct {
 	conn        net.Conn
 	chat_server *ChatServer
-	user        User
+	user        User                // User attached to this session
 	reader_buf  *bufio.Reader       // IO Buffer to read from socket
 	writer_buf  *bufio.Writer       // IO Buffer to write to socket
 	groups      map[string][]string // Group name -> list of users
@@ -41,12 +41,14 @@ func New_proxy_worker(conn net.Conn, chat_server *ChatServer) ProxyWorker {
 func (p *ProxyWorker) Start() {
 	defer p.cleanup()
 
+	// Go routine to receive responses from the ChatServer
 	go p.process_server_res()
 
 	// Client socket reading loop
 	for {
 		line, err := p.reader_buf.ReadString('\n')
-		if err != nil { // nil represents EOF
+		if err != nil {
+			// nil represents EOF
 			// Connection closed or error
 			return
 		}
@@ -67,7 +69,8 @@ func (p *ProxyWorker) cleanup() {
 	log.Printf("Connection closed: %s", p.conn.RemoteAddr())
 }
 
-// From ChatServer to ProxyWorker
+// Process response from ChatServer to ProxyWorker
+// Using the user's response channel
 func (p *ProxyWorker) process_server_res() {
 	for res := range p.user.res_chn {
 		var output string
@@ -81,6 +84,7 @@ func (p *ProxyWorker) process_server_res() {
 	}
 }
 
+// Helper function to send messages back to client
 // Msg needs to include a '\n'
 func (p *ProxyWorker) write_to_socket(msg string) {
 	if _, err := p.writer_buf.WriteString(msg); err != nil {
@@ -90,7 +94,7 @@ func (p *ProxyWorker) write_to_socket(msg string) {
 	p.writer_buf.Flush()
 }
 
-// From ProxyWorker to ChatServer
+// Processes commands from ProxyWorker (client socket) to ChatServer
 func (p *ProxyWorker) process_cmd(line string) {
 	tok := strings.Fields(strings.TrimSpace(line))
 	if len(line) == 0 || len(tok) == 0 {
@@ -164,6 +168,7 @@ func (p *ProxyWorker) handle_grp(args []string) {
 	p.write_to_socket(msg)
 }
 
+// Expands destinations to users from nicks or groups
 func (p *ProxyWorker) expand_dest(dest_str string) []string {
 	input_dests := strings.Split(dest_str, ",")
 	expanded_dest := []string{}

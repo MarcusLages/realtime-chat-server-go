@@ -31,6 +31,7 @@ func main() {
 	fmt.Println("Connection closed")
 }
 
+// Coroutine to print/read from keyboard
 func read_from_keyboard(key_scan *bufio.Scanner, conn net.Conn, done chan bool) {
 	defer func() { done <- true }()
 	for {
@@ -42,6 +43,7 @@ func read_from_keyboard(key_scan *bufio.Scanner, conn net.Conn, done chan bool) 
 	}
 }
 
+// Coroutine to print/read from server socket
 func read_from_socket(sock_scan *bufio.Scanner, done chan bool) {
 	defer func() { done <- true }()
 	for {

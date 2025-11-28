@@ -16,6 +16,7 @@ const (
 	LOGOUT Cmd = "/LOGOUT"
 )
 
+// Regex to check a valid nick
 const NickRegex string = "^[a-zA-Z][a-zA-Z0-9_]{0,9}$"
 
 type ChatServer struct {
@@ -70,7 +71,7 @@ func (s *ChatServer) process_nck(req Request) {
 		return
 	}
 
-	// Renaming user
+	// Renaming user, so we delete the old entry
 	if old_nick, exists := s.user_nicks[req.From.ID]; exists {
 		delete(s.users, old_nick)
 	}
@@ -112,7 +113,7 @@ func (s *ChatServer) process_msg(req Request) {
 	dest_nick := req.Data[0]
 	msg := req.Data[1]
 
-	// Check if sender has a nick
+	// Check if sender has a nick, if not, they are unauthorized to send a msg
 	nick, has_nick := s.user_nicks[req.From.ID]
 	if !has_nick {
 		err_res := Err_unauthorized(req.From.ID)
@@ -130,6 +131,8 @@ func (s *ChatServer) process_msg(req Request) {
 }
 
 // */LOGOUT
+// Logs out an user from the ChatServer
+// User is the one responsible for closing their own channel
 func (s *ChatServer) process_logout(req Request) {
 	user_id := req.From.ID
 
@@ -140,6 +143,7 @@ func (s *ChatServer) process_logout(req Request) {
 	}
 }
 
+// Helper function to send a Response or an error back to the User
 func (s *ChatServer) send_msg(src User, dest_nick string, res Response) {
 	dest, exists := s.users[dest_nick]
 
