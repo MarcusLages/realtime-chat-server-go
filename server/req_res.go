@@ -29,8 +29,8 @@ func Err_nck_doesnt_exist(dest, non_exist_nick string) Response {
 	return Err_res(dest, err_msg)
 }
 
-func Err_invalid_cmd(dest, inval_cmd string) Response {
-	err_msg := fmt.Sprintf("`%s` is an invalid command.", inval_cmd)
+func Err_invalid_cmd(dest string, inval_cmd Cmd) Response {
+	err_msg := fmt.Sprintf("`%s` is an invalid command.", string(inval_cmd))
 	return Err_res(dest, err_msg)
 }
 
