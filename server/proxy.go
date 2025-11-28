@@ -5,8 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"regexp"
 	"strings"
 )
+
+// Default channel buffer size among all the users using the proxy
+const UserBufSize int = 15
+
+// Regex to check for valid group names
+const GroupRegex string = "^#[a-zA-Z][a-zA-Z0-9_]{0,9}$"
+
+// New group command implemented by the proxy
+const GRP Cmd = "/GRP"
 
 type ProxyWorker struct {
 	conn        net.Conn
@@ -16,8 +26,6 @@ type ProxyWorker struct {
 	writer_buf  *bufio.Writer       // IO Buffer to write to socket
 	groups      map[string][]string // Group name -> list of users
 }
-
-const UserBufSize int = 15
 
 func New_proxy_worker(conn net.Conn, chat_server *ChatServer) ProxyWorker {
 	return ProxyWorker{
@@ -99,24 +107,24 @@ func (p *ProxyWorker) process_cmd(line string) {
 		p.chat_server.Send_request(req)
 	case MSG:
 		p.handle_msg(tok[1:])
-	// case GRP:
-	// 	p.handle_grp()
+	case GRP:
+		p.handle_grp(tok[:1])
 	default:
 		err_msg := fmt.Sprintf("Unknown command: %s\n", cmd)
 		p.writer_buf.WriteString(err_msg)
 	}
 }
 
-func (p *ProxyWorker) handle_msg(tok []string) {
-	if len(tok) < 2 {
+func (p *ProxyWorker) handle_msg(args []string) {
+	if len(args) < 2 {
 		p.write_to_socket("Wrong usage of /MSG. Usage: /MSG <dest> <msg>")
 		return
 	}
 
-	dest_str := tok[1]
+	dest_str := args[1]
 	dest := remove_duplicates(p.expand_dest(dest_str))
 
-	msg := strings.Join(tok[2:], " ")
+	msg := strings.Join(args[2:], " ")
 	for _, d := range dest {
 		req := Request{
 			From: p.user,
@@ -125,6 +133,27 @@ func (p *ProxyWorker) handle_msg(tok []string) {
 		}
 		p.chat_server.Send_request(req)
 	}
+}
+
+func (p *ProxyWorker) handle_grp(args []string) {
+	if len(args) < 2 {
+		p.write_to_socket("Wrong usage of /GRP. Usage: /GRP #group user,user,...")
+		return
+	}
+
+	group_name := args[1]
+	users_str := args[2]
+
+	if !is_valid_group_name(group_name) {
+		p.write_to_socket("Invalid group name. Must start with hash (#), include only alphanumeric chars and underscores, and have a max length of 11 (counting the hash).\n")
+		return
+	}
+
+	users := strings.Split(users_str, ",")
+	p.groups[group_name] = users
+
+	msg := fmt.Sprintf("Group %s added\n", group_name)
+	p.write_to_socket(msg)
 }
 
 func (p *ProxyWorker) expand_dest(dest_str string) []string {
@@ -162,4 +191,16 @@ func remove_duplicates(arr []string) []string {
 	}
 
 	return result
+}
+
+func is_valid_group_name(group_name string) bool {
+	if len(group_name) < 2 ||
+		len(group_name) > 11 ||
+		strings.HasPrefix(group_name, "#") {
+
+		return false
+	}
+
+	matched, _ := regexp.MatchString(GroupRegex, group_name)
+	return matched
 }
