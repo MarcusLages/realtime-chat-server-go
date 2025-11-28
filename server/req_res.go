@@ -19,12 +19,22 @@ type Response struct {
 	Data string
 }
 
-// Helper error response creators
+// Helper error response generators
 func Err_res(dest, err_msg string) Response {
 	return Response{ServerName, dest, err_msg}
 }
 
-func Err_doesnt_exist(dest, non_exist_nick string) Response {
+func Err_nck_doesnt_exist(dest, non_exist_nick string) Response {
 	err_msg := fmt.Sprintf("%s doesn't exist.", non_exist_nick)
+	return Err_res(dest, err_msg)
+}
+
+func Err_invalid_cmd(dest, inval_cmd string) Response {
+	err_msg := fmt.Sprintf("`%s` is an invalid command.", inval_cmd)
+	return Err_res(dest, err_msg)
+}
+
+func Err_unauthorized(dest string) Response {
+	err_msg := "Unauthorized. You must have a NCK first using the `/NCK` cmd."
 	return Err_res(dest, err_msg)
 }
