@@ -2,16 +2,19 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net"
+	"strings"
 )
 
 type ProxyWorker struct {
 	conn        net.Conn
 	chat_server *ChatServer
 	user        User
-	reader_buf  *bufio.Reader
-	writer_buf  *bufio.Writer
+	reader_buf  *bufio.Reader       // IO Buffer to read from socket
+	writer_buf  *bufio.Writer       // IO Buffer to write to socket
+	group_name  map[string][]string // Group name -> list of users
 }
 
 const UserBufSize int = 15
@@ -55,12 +58,51 @@ func (p *ProxyWorker) cleanup() {
 	log.Printf("Connection closed: %s", p.conn.RemoteAddr())
 }
 
-// From GameServer to ProxyWorker
+// From ChatServer to ProxyWorker
 func (p *ProxyWorker) process_server_res() {
+	for res := range p.user.res_chn {
+		var output string
+		if res.From != ServerName {
+			output += res.From
+		}
+		// New line is very important since most sockets read input
+		// from line to line
+		output += res.Data + "\n"
 
+		if _, err := p.writer_buf.WriteString(output); err != nil {
+			log.Printf("Writing error to socket: %v", err)
+		}
+
+		p.writer_buf.Flush()
+	}
 }
 
-// From ProxyWorker to GameServer
+// From ProxyWorker to ChatServer
 func (p *ProxyWorker) process_cmd(line string) {
+	tok := strings.Fields(strings.TrimSpace(line))
+	if len(line) == 0 || len(tok) == 0 {
+		return
+	}
+
+	cmd := strings.ToUpper(tok[0])
+	switch Cmd(cmd) {
+	case NCK:
+		nick := tok[1]
+		req := Request{p.user, NCK, []string{nick}} // Data is of slice type
+		p.chat_server.Send_request(req)
+	case LST:
+		req := Request{p.user, LST, []string{}}
+		p.chat_server.Send_request(req)
+	case MSG:
+		// p.handle_msg()
+	case GRP:
+		// p.handle_grp()
+	default:
+		err_msg := fmt.Sprintf("Unknown command: %s\n", cmd)
+		p.writer_buf.WriteString(err_msg)
+	}
+}
+
+func (p *ProxyWorker) handle_nck() {
 
 }
