@@ -8,7 +8,6 @@ realtime-chat-server-go/
 ├── client/            # Client-side shell code
 ├── echo/              # Simple example of an echo server (for initial shell testing)
 ├── server/            # Main server implementation
-├── assignment2.pdf    # Project documentation from assignment
 └── go.mod             # Go module dependencies
 ```
 ## Running the Project
