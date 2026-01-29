@@ -1,7 +1,7 @@
 # Realtime Chat Server (Go)
-A real-time chat application built with Go, supporting multiple chat rooms and concurrent users.
+A real-time chat application built with Go, supporting one chat rooms and multiple concurrent users.
 ## Overview
-This is a raw TCP socket-based chat server implementation in Go that enables real-time communication between multiple clients in the same chat rooms.
+This is a raw TCP socket-based chat server implementation in Go that enables real-time communication between multiple clients in the same chat room.
 ## Project Structure
 ```bash
 realtime-chat-server-go/
@@ -36,7 +36,7 @@ Lists logged users.
 Sends the same message to all recipients. You can have multiple target recipients by separating them by comma (no spaces, just comma)
 - Ex: `/MSG user1,user2 Hello everyone.`
 ##### `/GRP <groupname> <users>` 
-Creates a group with all the users. Whenever a message is sent to a group, the message will be broadcasted to all the users in that group. The group name must start with hash (#). To add multiple users, separate them by comma similarly to the `/MSG` command.
+Creates a group with all the users. Whenever a message is sent to a group, the message will be broadcasted to all the users in that group. The group name must start with hash (`#`). To add multiple users, separate them by comma similarly to the `/MSG` command.
 ## Extra Notes
 Access the Elixir version: [MarcusLages/realtime-chat-server](https://github.com/MarcusLages/realtime-chat-server)
 
